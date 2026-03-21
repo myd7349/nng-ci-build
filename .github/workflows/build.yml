@@ -205,7 +205,6 @@ jobs:
           sudo apt-get install gcc-arm-linux-gnueabihf
           sudo apt-get install g++-arm-linux-gnueabihf
           echo "ARM_C_COMPILER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
-          echo "ARM_CXX_COMPILER=arm-linux-gnueabihf-g++" >> $GITHUB_ENV
 
       - name: Configure
         run: >
@@ -215,7 +214,6 @@ jobs:
           -DBUILD_SHARED_LIBS=ON
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           ${{ matrix.arch == 'arm' && '-DCMAKE_C_COMPILER=$ARM_C_COMPILER' || '' }}
-          ${{ matrix.arch == 'arm' && '-DCMAKE_CXX_COMPILER=$ARM_CXX_COMPILER' || '' }}
           -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_PREFIX }}
           -DNNG_ELIDE_DEPRECATED=ON
           -DNNG_ENABLE_COVERAGE=OFF
