@@ -70,7 +70,7 @@ jobs:
           -DNNG_ELIDE_DEPRECATED=ON
           -DNNG_ENABLE_COVERAGE=OFF
           -DNNG_ENABLE_NNGCAT=ON
-          -DNNG_ENABLE_TLS=ON
+          -DNNG_ENABLE_TLS=OFF
           -DNNG_TESTS=OFF
           -DNNG_TOOLS=ON
 
@@ -146,7 +146,7 @@ jobs:
           -DNNG_ELIDE_DEPRECATED=ON
           -DNNG_ENABLE_COVERAGE=OFF
           -DNNG_ENABLE_NNGCAT=ON
-          -DNNG_ENABLE_TLS=ON
+          -DNNG_ENABLE_TLS=OFF
           -DNNG_TESTS=OFF
           -DNNG_TOOLS=ON
 
@@ -220,7 +220,7 @@ jobs:
           -DNNG_ELIDE_DEPRECATED=ON
           -DNNG_ENABLE_COVERAGE=OFF
           -DNNG_ENABLE_NNGCAT=ON
-          -DNNG_ENABLE_TLS=ON
+          -DNNG_ENABLE_TLS=OFF
           -DNNG_TESTS=OFF
           -DNNG_TOOLS=ON
 
@@ -301,7 +301,7 @@ jobs:
                 -DNNG_ELIDE_DEPRECATED=ON \
                 -DNNG_ENABLE_COVERAGE=OFF \
                 -DNNG_ENABLE_NNGCAT=ON \
-                -DNNG_ENABLE_TLS=ON \
+                -DNNG_ENABLE_TLS=OFF \
                 -DNNG_TESTS=OFF \
                 -DNNG_TOOLS=ON
               cd build
@@ -383,7 +383,7 @@ jobs:
           -DNNG_ELIDE_DEPRECATED=ON
           -DNNG_ENABLE_COVERAGE=OFF
           -DNNG_ENABLE_NNGCAT=ON
-          -DNNG_ENABLE_TLS=ON
+          -DNNG_ENABLE_TLS=OFF
           -DNNG_TESTS=OFF
           -DNNG_TOOLS=ON
 
