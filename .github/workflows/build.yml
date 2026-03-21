@@ -436,11 +436,11 @@ jobs:
           7z a nng-${{ env.NNG_VERSION }}-osx-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-osx-arm64/*
           7z a nng-${{ env.NNG_VERSION }}-osx-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-osx-x64/*
           7z a nng-${{ env.NNG_VERSION }}-win-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-arm64/*
-          7z a nng-${{ env.NNG_VERSION }}-win-arm64-dynamic-mt.zip ./nng-${{ env.NNG_VERSION }}-win-arm64-mt/*
+          7z a nng-${{ env.NNG_VERSION }}-win-arm64-dynamic-md.zip ./nng-${{ env.NNG_VERSION }}-win-arm64-md/*
           7z a nng-${{ env.NNG_VERSION }}-win-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x64/*
-          7z a nng-${{ env.NNG_VERSION }}-win-x64-mt-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x64-mt/*
+          7z a nng-${{ env.NNG_VERSION }}-win-x64-md-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x64-md/*
           7z a nng-${{ env.NNG_VERSION }}-win-x86-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x86/*
-          7z a nng-${{ env.NNG_VERSION }}-win-x86-mt-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x86-mt/*
+          7z a nng-${{ env.NNG_VERSION }}-win-x86-md-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x86-md/*
 
       - name: Release
         uses: softprops/action-gh-release@v2
