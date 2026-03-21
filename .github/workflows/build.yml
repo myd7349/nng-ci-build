@@ -1,0 +1,453 @@
+name: nng
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    types: [ opened, ready_for_review, reopened, synchronize ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NNG_VERSION: v2.0.0-alpha.7
+  BUILD_TYPE: Release
+  INSTALL_PREFIX: install
+
+jobs:
+  build-android:
+    name: build-${{ matrix.rid }}
+    if: >-
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: android-arm
+            abi: armeabi-v7a
+
+          - rid: android-arm64
+            abi: arm64-v8a
+
+          - rid: android-x64
+            abi: x86_64
+
+          - rid: android-x86
+            abi: x86
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Clone nng
+        run: |
+          git clone https://github.com/nanomsg/nng.git
+          pushd nng
+          git checkout ${{ env.NNG_VERSION }}
+          popd
+
+      - name: Run uname
+        run: uname -m
+
+      - name: Configure
+        run: >
+          cmake
+          -S nng
+          -B build
+          -DBUILD_SHARED_LIBS=ON
+          -DCMAKE_SYSTEM_NAME=Android
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake
+          -DANDROID_ABI=${{ matrix.abi }}
+          -DANDROID_PLATFORM=android-21
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_PREFIX }}
+          -DNNG_ELIDE_DEPRECATED=ON
+          -DNNG_ENABLE_COVERAGE=OFF
+          -DNNG_ENABLE_NNGCAT=ON
+          -DNNG_ENABLE_TLS=ON
+          -DNNG_TESTS=OFF
+          -DNNG_TOOLS=ON
+
+      - name: Build & Install
+        run: |
+          pushd build
+          make install
+          popd
+
+      - name: Run file command
+        run: file ./${{ env.INSTALL_PREFIX }}/lib/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nng-${{ env.NNG_VERSION }}-${{ matrix.rid }}
+          path: ${{ env.INSTALL_PREFIX }}
+
+  build-apple:
+    name: build-${{ matrix.rid }}
+    if: >-
+      github.event.pull_request.draft == false
+    runs-on: macOS-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: ios-arm64
+            os: OS64
+
+          - rid: iossimulator-arm64
+            os: SIMULATORARM64
+
+          - rid: iossimulator-x64
+            os: SIMULATOR64
+
+          - rid: osx
+            os: MAC_UNIVERSAL
+
+          - rid: osx-arm64
+            os: MAC_ARM64
+
+          - rid: osx-x64
+            os: MAC
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Clone nng
+        run: |
+          git clone https://github.com/nanomsg/nng.git
+          pushd nng
+          git checkout ${{ env.NNG_VERSION }}
+          popd
+
+      - name: Run uname
+        run: uname -m
+
+      - name: Configure
+        run: >
+          cmake
+          -S nng
+          -B build
+          -DBUILD_SHARED_LIBS=ON
+          -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/toolchains/ios-cmake/ios.toolchain.cmake
+          -DPLATFORM=${{ matrix.os }}
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_PREFIX }}
+          -DCMAKE_MACOSX_BUNDLE=OFF
+          -DNNG_ELIDE_DEPRECATED=ON
+          -DNNG_ENABLE_COVERAGE=OFF
+          -DNNG_ENABLE_NNGCAT=ON
+          -DNNG_ENABLE_TLS=ON
+          -DNNG_TESTS=OFF
+          -DNNG_TOOLS=ON
+
+      - name: Build & Install
+        run: |
+          cmake --build build --target install
+
+      - name: Run file command
+        run: file ./${{ env.INSTALL_PREFIX }}/lib/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nng-${{ env.NNG_VERSION }}-${{ matrix.rid }}
+          path: ${{ env.INSTALL_PREFIX }}
+
+  build-linux:
+    name: build-${{ matrix.rid }}
+    if: >-
+      github.event.pull_request.draft == false
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm
+            os: ubuntu-latest
+            rid: linux-arm
+
+          - arch: arm64
+            os: ubuntu-24.04-arm
+            rid: linux-arm64
+
+          - arch: x64
+            os: ubuntu-latest
+            rid: linux-x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Clone nng
+        run: |
+          git clone https://github.com/nanomsg/nng.git
+          pushd nng
+          git checkout ${{ env.NNG_VERSION }}
+          popd
+
+      - name: Run uname
+        run: uname -m
+
+      - name: Install gcc toolchain
+        if: ${{ matrix.arch == 'arm' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-arm-linux-gnueabihf
+          sudo apt-get install g++-arm-linux-gnueabihf
+          echo "ARM_C_COMPILER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          echo "ARM_CXX_COMPILER=arm-linux-gnueabihf-g++" >> $GITHUB_ENV
+
+      - name: Configure
+        run: >
+          cmake
+          -S nng
+          -B build
+          -DBUILD_SHARED_LIBS=ON
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          ${{ matrix.arch == 'arm' && '-DCMAKE_C_COMPILER=$ARM_C_COMPILER' || '' }}
+          ${{ matrix.arch == 'arm' && '-DCMAKE_CXX_COMPILER=$ARM_CXX_COMPILER' || '' }}
+          -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_PREFIX }}
+          -DNNG_ELIDE_DEPRECATED=ON
+          -DNNG_ENABLE_COVERAGE=OFF
+          -DNNG_ENABLE_NNGCAT=ON
+          -DNNG_ENABLE_TLS=ON
+          -DNNG_TESTS=OFF
+          -DNNG_TOOLS=ON
+
+      - name: Build & Install
+        run: |
+          pushd build
+          make install
+          popd
+
+      - name: Run file command
+        run: file ./${{ env.INSTALL_PREFIX }}/lib/*
+
+      - name: Run ldd command
+        if: ${{ matrix.arch != 'arm' }}
+        run: ldd ./${{ env.INSTALL_PREFIX }}/lib/libnng.so
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nng-${{ env.NNG_VERSION }}-${{ matrix.rid }}
+          path: ${{ env.INSTALL_PREFIX }}
+
+  build-linux-musl:
+    name: build-${{ matrix.rid }}
+    if: >-
+      github.event.pull_request.draft == false
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            os: ubuntu-24.04-arm
+            rid: linux-musl-arm64
+
+          - arch: x64
+            os: ubuntu-latest
+            rid: linux-musl-x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Clone nng
+        run: |
+          git clone https://github.com/nanomsg/nng.git
+          pushd nng
+          git checkout ${{ env.NNG_VERSION }}
+          popd
+
+      - name: Pull Alpine image
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            docker pull --platform linux/arm64 arm64v8/alpine
+          else
+            docker pull alpine:latest
+          fi
+
+      - name: Install toolchains & build
+        run: |
+          docker run --rm \
+            ${{ matrix.arch == 'arm64' && '--platform linux/arm64' || '' }} \
+            -v ${{ github.workspace }}:/work \
+            -w /work \
+            ${{ matrix.arch == 'arm64' && 'arm64v8/alpine' || 'alpine:latest' }} \
+            sh -euxc "
+              apk update &&
+              apk add --no-cache \
+                build-base \
+                cmake \
+                linux-headers
+              cmake \
+                -S nng \
+                -B build \
+                -DBUILD_SHARED_LIBS=ON \
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_PREFIX }} \
+                -DNNG_ELIDE_DEPRECATED=ON \
+                -DNNG_ENABLE_COVERAGE=OFF \
+                -DNNG_ENABLE_NNGCAT=ON \
+                -DNNG_ENABLE_TLS=ON \
+                -DNNG_TESTS=OFF \
+                -DNNG_TOOLS=ON
+              cd build
+              make install
+            "
+
+      - name: Run file command
+        run: file ./${{ env.INSTALL_PREFIX }}/lib/*
+
+      - name: Run ldd command
+        run: ldd ./${{ env.INSTALL_PREFIX }}/lib/libnng.so
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nng-${{ env.NNG_VERSION }}-${{ matrix.rid }}
+          path: ${{ env.INSTALL_PREFIX }}
+
+  build-windows:
+    name: build-${{ matrix.rid }}
+    if: >-
+      github.event.pull_request.draft == false
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: ARM64
+            crt: MD
+            os: windows-11-arm
+            rid: win-arm64-md
+
+          - arch: ARM64
+            crt: MT
+            os: windows-11-arm
+            rid: win-arm64
+
+          - arch: x64
+            crt: MD
+            os: windows-latest
+            rid: win-x64-md
+
+          - arch: x64
+            crt: MT
+            os: windows-latest
+            rid: win-x64
+
+          - arch: Win32
+            crt: MD
+            os: windows-latest
+            rid: win-x86-md
+
+          - arch: Win32
+            crt: MT
+            os: windows-latest
+            rid: win-x86
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Clone nng
+        run: |
+          git clone https://github.com/nanomsg/nng.git
+          pushd nng
+          git checkout ${{ env.NNG_VERSION }}
+          popd
+
+      - name: Configure
+        run: >
+          cmake
+          -S nng
+          -B build
+          -G "Visual Studio 17 2022"
+          -A ${{ matrix.arch }}
+          -DBUILD_SHARED_LIBS=ON
+          -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_PREFIX }}
+          ${{ matrix.crt == 'MT' && '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>' || '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>DLL' }}
+          -DNNG_ELIDE_DEPRECATED=ON
+          -DNNG_ENABLE_COVERAGE=OFF
+          -DNNG_ENABLE_NNGCAT=ON
+          -DNNG_ENABLE_TLS=ON
+          -DNNG_TESTS=OFF
+          -DNNG_TOOLS=ON
+
+      - name: Build & Install
+        run: |
+          cmake --build build --config ${{ env.BUILD_TYPE }} --target install
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nng-${{ env.NNG_VERSION }}-${{ matrix.rid }}
+          path: ${{ env.INSTALL_PREFIX }}
+
+  release:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    needs:
+      - build-android
+      - build-apple
+      - build-linux
+      - build-linux-musl
+      - build-windows
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+
+      - name: List downloaded files
+        run: ls -R
+
+      - name: Print release version
+        run: echo ${{ github.ref_name }}
+
+      - name: Create archives
+        run: |
+          7z a nng-${{ env.NNG_VERSION }}-android-arm-dynamic.zip ./nng-${{ env.NNG_VERSION }}-android-arm/*
+          7z a nng-${{ env.NNG_VERSION }}-android-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-android-arm64/*
+          7z a nng-${{ env.NNG_VERSION }}-android-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-android-x64/*
+          7z a nng-${{ env.NNG_VERSION }}-android-x86-dynamic.zip ./nng-${{ env.NNG_VERSION }}-android-x86/*
+          7z a nng-${{ env.NNG_VERSION }}-ios-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-ios-arm64/*
+          7z a nng-${{ env.NNG_VERSION }}-iossimulator-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-iossimulator-arm64/*
+          7z a nng-${{ env.NNG_VERSION }}-iossimulator-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-iossimulator-x64/*
+          7z a nng-${{ env.NNG_VERSION }}-linux-arm-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-arm/*
+          7z a nng-${{ env.NNG_VERSION }}-linux-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-arm64/*
+          7z a nng-${{ env.NNG_VERSION }}-linux-musl-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-musl-arm64/*
+          7z a nng-${{ env.NNG_VERSION }}-linux-musl-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-musl-x64/*
+          7z a nng-${{ env.NNG_VERSION }}-linux-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-x64/*
+          7z a nng-${{ env.NNG_VERSION }}-osx-dynamic.zip ./nng-${{ env.NNG_VERSION }}-osx/*
+          7z a nng-${{ env.NNG_VERSION }}-osx-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-osx-arm64/*
+          7z a nng-${{ env.NNG_VERSION }}-osx-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-osx-x64/*
+          7z a nng-${{ env.NNG_VERSION }}-win-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-arm64/*
+          7z a nng-${{ env.NNG_VERSION }}-win-arm64-dynamic-mt.zip ./nng-${{ env.NNG_VERSION }}-win-arm64-mt/*
+          7z a nng-${{ env.NNG_VERSION }}-win-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x64/*
+          7z a nng-${{ env.NNG_VERSION }}-win-x64-mt-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x64-mt/*
+          7z a nng-${{ env.NNG_VERSION }}-win-x86-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x86/*
+          7z a nng-${{ env.NNG_VERSION }}-win-x86-mt-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x86-mt/*
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          generate_release_notes: true
+          files: |
+            nng*.zip
