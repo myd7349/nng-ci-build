@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 env:
-  NNG_VERSION: v2.0.0-alpha.7
+  NNG_VERSION: v1.11
   BUILD_TYPE: Release
   INSTALL_PREFIX: install
 
