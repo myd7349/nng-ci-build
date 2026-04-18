@@ -443,7 +443,7 @@ jobs:
           7z a nng-${{ env.NNG_VERSION }}-win-x86-md-dynamic.zip ./nng-${{ env.NNG_VERSION }}-win-x86-md/*
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
