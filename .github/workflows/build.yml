@@ -60,6 +60,7 @@ jobs:
           cmake
           -S nng
           -B build
+          -G Ninja
           -DBUILD_SHARED_LIBS=ON
           -DCMAKE_SYSTEM_NAME=Android
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake
@@ -76,9 +77,7 @@ jobs:
 
       - name: Build & Install
         run: |
-          pushd build
-          make install
-          popd
+          cmake --build build --target install
 
       - name: Run file command
         run: file ./${{ env.INSTALL_PREFIX }}/lib/*
@@ -137,6 +136,7 @@ jobs:
           cmake
           -S nng
           -B build
+          -G Ninja
           -DBUILD_SHARED_LIBS=ON
           -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/toolchains/ios-cmake/ios.toolchain.cmake
           -DPLATFORM=${{ matrix.os }}
@@ -212,6 +212,7 @@ jobs:
           cmake
           -S nng
           -B build
+          -G Ninja
           -DBUILD_SHARED_LIBS=ON
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           ${{ matrix.arch == 'arm' && '-DCMAKE_C_COMPILER=$ARM_C_COMPILER' || '' }}
@@ -225,9 +226,7 @@ jobs:
 
       - name: Build & Install
         run: |
-          pushd build
-          make install
-          popd
+          cmake --build build --target install
 
       - name: Run file command
         run: file ./${{ env.INSTALL_PREFIX }}/lib/*
@@ -290,10 +289,12 @@ jobs:
               apk add --no-cache \
                 build-base \
                 cmake \
-                linux-headers
+                linux-headers \
+                ninja
               cmake \
                 -S nng \
                 -B build \
+                -G Ninja \
                 -DBUILD_SHARED_LIBS=ON \
                 -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
                 -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_PREFIX }} \
@@ -303,8 +304,7 @@ jobs:
                 -DNNG_ENABLE_TLS=OFF \
                 -DNNG_TESTS=OFF \
                 -DNNG_TOOLS=ON
-              cd build
-              make install
+              cmake --build build --target install
             "
 
       - name: Run file command
@@ -330,31 +330,37 @@ jobs:
         include:
           - arch: ARM64
             crt: MD
+            msvc_arch: arm64
             os: windows-11-arm
             rid: win-arm64-md
 
           - arch: ARM64
             crt: MT
+            msvc_arch: arm64
             os: windows-11-arm
             rid: win-arm64
 
           - arch: x64
             crt: MD
+            msvc_arch: amd64
             os: windows-latest
             rid: win-x64-md
 
           - arch: x64
             crt: MT
+            msvc_arch: amd64
             os: windows-latest
             rid: win-x64
 
           - arch: Win32
             crt: MD
+            msvc_arch: amd64_x86
             os: windows-latest
             rid: win-x86-md
 
           - arch: Win32
             crt: MT
+            msvc_arch: amd64_x86
             os: windows-latest
             rid: win-x86
 
@@ -369,13 +375,17 @@ jobs:
           git checkout ${{ env.NNG_VERSION }}
           popd
 
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
+
       - name: Configure
         run: >
           cmake
           -S nng
           -B build
-          -G "Visual Studio 17 2022"
-          -A ${{ matrix.arch }}
+          -G "Ninja Multi-Config"
           -DBUILD_SHARED_LIBS=ON
           -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_PREFIX }}
           ${{ matrix.crt == 'MT' && '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>' || '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>DLL' }}
