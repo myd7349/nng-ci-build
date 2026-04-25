@@ -328,39 +328,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - arch: ARM64
+          - arch: arm64
             crt: MD
-            msvc_arch: arm64
             os: windows-11-arm
             rid: win-arm64-md
 
-          - arch: ARM64
+          - arch: arm64
             crt: MT
-            msvc_arch: arm64
             os: windows-11-arm
             rid: win-arm64
 
           - arch: x64
             crt: MD
-            msvc_arch: amd64
             os: windows-latest
             rid: win-x64-md
 
           - arch: x64
             crt: MT
-            msvc_arch: amd64
             os: windows-latest
             rid: win-x64
 
-          - arch: Win32
+          - arch: x86
             crt: MD
-            msvc_arch: amd64_x86
             os: windows-latest
             rid: win-x86-md
 
-          - arch: Win32
+          - arch: x86
             crt: MT
-            msvc_arch: amd64_x86
             os: windows-latest
             rid: win-x86
 
@@ -378,7 +372,7 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: ${{ matrix.msvc_arch }}
+          arch: ${{ matrix.arch }}
 
       - name: Configure
         run: >
