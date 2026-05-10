@@ -241,6 +241,83 @@ jobs:
           name: nng-${{ env.NNG_VERSION }}-${{ matrix.rid }}
           path: ${{ env.INSTALL_PREFIX }}
 
+  build-linux-loongarch64:
+    name: build-linux-loongarch64
+    if: >-
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    env:
+      TOOLCHAIN_VERSION: "2023.08.08"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Clone nng
+        run: |
+          git clone https://github.com/nanomsg/nng.git
+          pushd nng
+          git checkout ${{ env.NNG_VERSION }}
+          popd
+
+      - name: Run uname
+        run: uname -m
+
+      - uses: actions/cache/restore@v5
+        id: restore-cache
+        with:
+          path: /opt/cross-tools
+          key: loongarch64-${{ env.TOOLCHAIN_VERSION }}
+
+      - name: Install LoongArch64 toolchain
+        if: ${{ !steps.restore-cache.outputs.cache-hit }}
+        run: |
+          url="https://github.com/loongson/build-tools/releases/download/${{ env.TOOLCHAIN_VERSION }}/x86_64-cross-tools-loongarch64-gcc-libc.tar.xz"
+          wget -nv "$url" -O /tmp/toolchain.tar.xz
+          mkdir -p /opt
+          tar -C /opt -x -f /tmp/toolchain.tar.xz
+
+      - uses: actions/cache/save@v5
+        if: ${{ !steps.restore-cache.outputs.cache-hit }}
+        with:
+          path: /opt/cross-tools
+          key: loongarch64-${{ env.TOOLCHAIN_VERSION }}
+
+      - name: Setup Loongarch64 build environment
+        run: |
+          echo "/opt/cross-tools/bin" >> $GITHUB_PATH
+          echo "CC=loongarch64-unknown-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Configure
+        run: >
+          cmake
+          -S nng
+          -B build
+          -G Ninja
+          -DBUILD_SHARED_LIBS=ON
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          -DCMAKE_C_COMPILER=loongarch64-unknown-linux-gnu-gcc
+          -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_PREFIX }}
+          -DNNG_ELIDE_DEPRECATED=ON
+          -DNNG_ENABLE_COVERAGE=OFF
+          -DNNG_ENABLE_NNGCAT=ON
+          -DNNG_ENABLE_TLS=OFF
+          -DNNG_TESTS=OFF
+          -DNNG_TOOLS=ON
+
+      - name: Build & Install
+        run: |
+          cmake --build build --target install
+
+      - name: Run file command
+        run: file ./${{ env.INSTALL_PREFIX }}/lib/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: nng-${{ env.NNG_VERSION }}-linux-loongarch64
+          path: ${{ env.INSTALL_PREFIX }}
+
   build-linux-musl:
     name: build-${{ matrix.rid }}
     if: >-
@@ -407,6 +484,7 @@ jobs:
       - build-android
       - build-apple
       - build-linux
+      - build-linux-loongarch64
       - build-linux-musl
       - build-windows
     permissions:
@@ -433,6 +511,7 @@ jobs:
           7z a nng-${{ env.NNG_VERSION }}-iossimulator-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-iossimulator-x64/*
           7z a nng-${{ env.NNG_VERSION }}-linux-arm-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-arm/*
           7z a nng-${{ env.NNG_VERSION }}-linux-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-arm64/*
+          7z a nng-${{ env.NNG_VERSION }}-linux-loongarch64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-loongarch64/*
           7z a nng-${{ env.NNG_VERSION }}-linux-musl-arm64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-musl-arm64/*
           7z a nng-${{ env.NNG_VERSION }}-linux-musl-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-musl-x64/*
           7z a nng-${{ env.NNG_VERSION }}-linux-x64-dynamic.zip ./nng-${{ env.NNG_VERSION }}-linux-x64/*
